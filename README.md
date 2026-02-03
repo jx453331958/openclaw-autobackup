@@ -1,6 +1,22 @@
 # OpenClaw Auto Backup
 
+English | [简体中文](README_CN.md)
+
 A generic backup tool for automatically backing up multiple workspaces to a Git repository with scheduled synchronization and web monitoring.
+
+## Quick Start
+
+```bash
+git clone https://github.com/jx453331958/openclaw-autobackup.git
+cd openclaw-autobackup
+cp .env.example .env && vim .env  # Edit configuration
+chmod +x setup.sh && ./setup.sh   # One-click install
+```
+
+The setup script auto-detects your OS and configures:
+- **macOS**: launchd service (auto-start on boot)
+- **Linux**: systemd service (auto-start on boot)
+- **Fallback**: cron-based watchdog
 
 ## Features
 
