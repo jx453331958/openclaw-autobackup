@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw Backup Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="backupMonitor()">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">🔒 OpenClaw Backup Monitor</h1>
+            <p class="text-gray-600">Automated backup system for KupoBot & WanDou workspaces</p>
+        </div>
+
+        <!-- Status Card -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Current Status</h2>
+                <button
+                    @click="triggerBackup"
+                    :disabled="status.is_running"
+                    :class="status.is_running ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
+                    class="px-6 py-2 text-white rounded-lg transition-colors duration-200 font-medium">
+                    <span x-show="!status.is_running">▶ Trigger Backup</span>
+                    <span x-show="status.is_running" class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Running...
+                    </span>
+                </button>
+            </div>
+
+            <template x-if="status.last_backup">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="text-sm text-gray-600 mb-1">Last Backup Status</div>
+                        <div class="flex items-center">
+                            <span
+                                :class="{
+                                    'bg-green-100 text-green-800': status.last_backup.status === 'success',
+                                    'bg-red-100 text-red-800': status.last_backup.status === 'failed',
+                                    'bg-yellow-100 text-yellow-800': status.last_backup.status === 'running'
+                                }"
+                                class="px-3 py-1 rounded-full text-sm font-medium"
+                                x-text="status.last_backup.status.toUpperCase()">
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="text-sm text-gray-600 mb-1">Last Backup Time</div>
+                        <div class="text-lg font-semibold text-gray-900" x-text="formatDate(status.last_backup.started_at)"></div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="text-sm text-gray-600 mb-1">Files Changed</div>
+                        <div class="text-lg font-semibold text-gray-900" x-text="status.last_backup.files_changed || 0"></div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="text-sm text-gray-600 mb-1">Duration</div>
+                        <div class="text-lg font-semibold text-gray-900" x-text="formatDuration(status.last_backup.duration_ms)"></div>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="!status.last_backup">
+                <div class="text-center py-8 text-gray-500">
+                    No backup history yet. Click "Trigger Backup" to start.
+                </div>
+            </template>
+        </div>
+
+        <!-- Workspace Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-5">
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-2">🤖</span>
+                    <h3 class="text-lg font-semibold text-gray-800">KupoBot Workspace</h3>
+                </div>
+                <div class="text-sm text-gray-600">
+                    Last Modified: <span class="font-medium" x-text="formatDate(status.kupobot_mod_time)"></span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-5">
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-2">🌱</span>
+                    <h3 class="text-lg font-semibold text-gray-800">WanDou Workspace</h3>
+                </div>
+                <div class="text-sm text-gray-600">
+                    Last Modified: <span class="font-medium" x-text="formatDate(status.wandou_mod_time)"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backup History -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Backup History</h2>
+
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b-2 border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Time</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Files</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Commit</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <template x-for="backup in backups" :key="backup.id">
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3 text-sm text-gray-900" x-text="formatDate(backup.started_at)"></td>
+                                <td class="px-4 py-3 text-sm">
+                                    <span
+                                        :class="{
+                                            'bg-green-100 text-green-800': backup.status === 'success',
+                                            'bg-red-100 text-red-800': backup.status === 'failed',
+                                            'bg-yellow-100 text-yellow-800': backup.status === 'running'
+                                        }"
+                                        class="px-2 py-1 rounded text-xs font-medium"
+                                        x-text="backup.status">
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-900" x-text="backup.files_changed || 0"></td>
+                                <td class="px-4 py-3 text-sm text-gray-600">
+                                    <span x-show="backup.commit_hash" x-text="backup.commit_hash ? backup.commit_hash.substring(0, 7) : '-'" class="font-mono"></span>
+                                    <span x-show="!backup.commit_hash">-</span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-900" x-text="formatDuration(backup.duration_ms)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+
+                <template x-if="backups.length === 0">
+                    <div class="text-center py-8 text-gray-500">
+                        No backup history available.
+                    </div>
+                </template>
+            </div>
+
+            <!-- Pagination -->
+            <div class="mt-4 flex items-center justify-between" x-show="totalPages > 1">
+                <div class="text-sm text-gray-600">
+                    Page <span x-text="currentPage"></span> of <span x-text="totalPages"></span>
+                </div>
+                <div class="flex gap-2">
+                    <button
+                        @click="loadBackups(currentPage - 1)"
+                        :disabled="currentPage === 1"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <button
+                        @click="loadBackups(currentPage + 1)"
+                        :disabled="currentPage === totalPages"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function backupMonitor() {
+            return {
+                status: {
+                    is_running: false,
+                    last_backup: null,
+                    kupobot_mod_time: null,
+                    wandou_mod_time: null
+                },
+                backups: [],
+                currentPage: 1,
+                pageSize: 20,
+                total: 0,
+
+                get totalPages() {
+                    return Math.ceil(this.total / this.pageSize);
+                },
+
+                init() {
+                    this.loadStatus();
+                    this.loadBackups(1);
+
+                    // Refresh every 5 seconds
+                    setInterval(() => {
+                        this.loadStatus();
+                        if (this.currentPage === 1) {
+                            this.loadBackups(1);
+                        }
+                    }, 5000);
+                },
+
+                async loadStatus() {
+                    try {
+                        const response = await fetch('/api/status');
+                        this.status = await response.json();
+                    } catch (error) {
+                        console.error('Failed to load status:', error);
+                    }
+                },
+
+                async loadBackups(page) {
+                    try {
+                        const response = await fetch(`/api/backups?page=${page}&page_size=${this.pageSize}`);
+                        const data = await response.json();
+                        this.backups = data.backups || [];
+                        this.total = data.total;
+                        this.currentPage = data.page;
+                    } catch (error) {
+                        console.error('Failed to load backups:', error);
+                    }
+                },
+
+                async triggerBackup() {
+                    if (this.status.is_running) return;
+
+                    try {
+                        const response = await fetch('/api/backups/trigger', {
+                            method: 'POST'
+                        });
+
+                        if (response.ok) {
+                            this.status.is_running = true;
+                            setTimeout(() => this.loadStatus(), 1000);
+                        } else {
+                            const data = await response.json();
+                            alert(data.error || 'Failed to trigger backup');
+                        }
+                    } catch (error) {
+                        alert('Failed to trigger backup: ' + error.message);
+                    }
+                },
+
+                formatDate(dateStr) {
+                    if (!dateStr) return '-';
+                    const date = new Date(dateStr);
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                },
+
+                formatDuration(ms) {
+                    if (!ms) return '-';
+                    if (ms < 1000) return `${ms}ms`;
+                    const seconds = Math.floor(ms / 1000);
+                    if (seconds < 60) return `${seconds}s`;
+                    const minutes = Math.floor(seconds / 60);
+                    const remainingSeconds = seconds % 60;
+                    return `${minutes}m ${remainingSeconds}s`;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

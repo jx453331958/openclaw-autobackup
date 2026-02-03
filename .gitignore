@@ -1,0 +1,29 @@
+# Environment variables
+.env
+.env.local
+
+# Database
+data/
+*.db
+
+# Logs
+logs/
+*.log
+
+# Compiled binaries
+backup-monitor
+openclaw-autobackup
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
