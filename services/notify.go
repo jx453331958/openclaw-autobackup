@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -26,7 +27,7 @@ func SendBackupNotification(cfg *config.Config, backup *models.Backup) {
 		status = "失败"
 	}
 
-	// Parse workspace names from config
+	// Parse workspace names from config; fall back to repo dir name in direct-repo mode
 	var workspaceNames []string
 	if cfg.Workspaces != "" {
 		for _, pair := range strings.Split(cfg.Workspaces, ",") {
@@ -35,6 +36,8 @@ func SendBackupNotification(cfg *config.Config, backup *models.Backup) {
 				workspaceNames = append(workspaceNames, strings.TrimSpace(parts[0]))
 			}
 		}
+	} else if cfg.BackupRepo != "" {
+		workspaceNames = append(workspaceNames, filepath.Base(cfg.BackupRepo))
 	}
 
 	var duration string
