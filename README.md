@@ -24,35 +24,20 @@ chmod +x deploy.sh
 - **Telegram 通知**：备份成功/失败时可选通知
 - **REST API**：通过 HTTP 接口触发备份和查询状态
 
-## 配置说明
+## 配置参考
 
-### 环境变量 (.env)
+部署向导会自动生成配置文件，以下供后续修改参考：
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
 | `WORKSPACES` | 是 | - | 格式：`名称1:路径1,名称2:路径2` |
 | `BACKUP_REPO` | 是 | - | 本地 Git 备份仓库路径 |
-| `GIT_REMOTE` | 是 | - | Git 远程地址（如 `git@github.com:user/repo.git`） |
-| `SSH_KEY_PATH` | 是 | - | SSH 私钥路径，用于 git push |
+| `GIT_REMOTE` | 否 | - | Git 远程地址（如 `git@github.com:user/repo.git`） |
+| `SSH_KEY_PATH` | 否 | - | SSH 私钥路径，用于 git push |
+| `BACKUP_CRON` | 否 | `0 * * * *` | 备份周期（cron 表达式，默认每小时） |
 | `PORT` | 否 | `3458` | Web 服务端口 |
-| `DATABASE_URL` | 否 | `./data/backup.db` | SQLite 数据库路径 |
 | `TELEGRAM_BOT_TOKEN` | 否 | - | Telegram Bot Token |
 | `TELEGRAM_CHAT_ID` | 否 | - | Telegram Chat ID |
-
-### 目录挂载 (docker-compose.yml)
-
-编辑 `docker-compose.yml` 将你的目录挂载到容器中：
-
-```yaml
-volumes:
-  - ./data:/app/data
-  - /path/to/backup-repo:/path/to/backup-repo
-  - /home/user/.ssh/id_rsa:/home/user/.ssh/id_rsa:ro
-  - /path/to/workspace1:/path/to/workspace1:ro
-  - /path/to/workspace2:/path/to/workspace2:ro
-```
-
-**注意**：`.env` 中的路径必须与容器内的挂载路径一致。
 
 ## 服务管理
 
@@ -76,6 +61,7 @@ volumes:
 | `/api/status` | GET | 获取备份状态和工作区信息 |
 | `/api/backups` | GET | 获取备份历史（支持分页） |
 | `/api/backups/trigger` | POST | 触发手动备份 |
+
 ## 许可证
 
 MIT License

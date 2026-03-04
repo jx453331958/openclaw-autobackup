@@ -24,35 +24,20 @@ The script will guide you through configuration and start the service.
 - **Telegram Notifications**: Optional alerts on backup success/failure
 - **REST API**: Programmatic access to trigger backups and query status
 
-## Configuration
+## Configuration Reference
 
-### Environment Variables (.env)
+The deploy wizard generates config files automatically. This table is for later reference:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `WORKSPACES` | Yes | - | Format: `name1:/path1,name2:/path2` |
 | `BACKUP_REPO` | Yes | - | Local git repository path for backups |
-| `GIT_REMOTE` | Yes | - | Remote git URL (e.g. `git@github.com:user/repo.git`) |
-| `SSH_KEY_PATH` | Yes | - | SSH private key path for git push |
+| `GIT_REMOTE` | No | - | Remote git URL (e.g. `git@github.com:user/repo.git`) |
+| `SSH_KEY_PATH` | No | - | SSH private key path for git push |
+| `BACKUP_CRON` | No | `0 * * * *` | Backup schedule (cron expression, default: hourly) |
 | `PORT` | No | `3458` | Web server port |
-| `DATABASE_URL` | No | `./data/backup.db` | SQLite database path |
-| `TELEGRAM_BOT_TOKEN` | No | - | Telegram bot token for notifications |
-| `TELEGRAM_CHAT_ID` | No | - | Telegram chat ID for notifications |
-
-### Volume Mounts (docker-compose.yml)
-
-Edit `docker-compose.yml` to mount your directories into the container:
-
-```yaml
-volumes:
-  - ./data:/app/data
-  - /path/to/backup-repo:/path/to/backup-repo
-  - /home/user/.ssh/id_rsa:/home/user/.ssh/id_rsa:ro
-  - /path/to/workspace1:/path/to/workspace1:ro
-  - /path/to/workspace2:/path/to/workspace2:ro
-```
-
-**Important**: The paths in `.env` must match the container-side mount paths.
+| `TELEGRAM_BOT_TOKEN` | No | - | Telegram bot token |
+| `TELEGRAM_CHAT_ID` | No | - | Telegram chat ID |
 
 ## Management
 
@@ -76,6 +61,7 @@ volumes:
 | `/api/status` | GET | Current status and workspace info |
 | `/api/backups` | GET | Backup history (paginated) |
 | `/api/backups/trigger` | POST | Trigger manual backup |
+
 ## License
 
 MIT License
