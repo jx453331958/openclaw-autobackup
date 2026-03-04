@@ -14,7 +14,8 @@ RUN CGO_ENABLED=1 go build -o openclaw-autobackup .
 # Runtime stage
 FROM alpine:latest
 
-RUN apk add --no-cache rsync git openssh-client tzdata
+RUN apk add --no-cache rsync git openssh-client tzdata && \
+    git config --global --add safe.directory '*'
 
 WORKDIR /app
 
