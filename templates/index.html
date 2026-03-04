@@ -12,25 +12,25 @@
         <!-- Header -->
         <div class="mb-8">
             <h1 class="text-4xl font-bold text-gray-900 mb-2">🔒 OpenClaw Backup Monitor</h1>
-            <p class="text-gray-600">Automated backup system for KupoBot & WanDou workspaces</p>
+            <p class="text-gray-600">自动工作区备份系统</p>
         </div>
 
         <!-- Status Card -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-2xl font-semibold text-gray-800">Current Status</h2>
+                <h2 class="text-2xl font-semibold text-gray-800">当前状态</h2>
                 <button
                     @click="triggerBackup"
                     :disabled="status.is_running"
                     :class="status.is_running ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
                     class="px-6 py-2 text-white rounded-lg transition-colors duration-200 font-medium">
-                    <span x-show="!status.is_running">▶ Trigger Backup</span>
+                    <span x-show="!status.is_running">▶ 立即备份</span>
                     <span x-show="status.is_running" class="flex items-center">
                         <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Running...
+                        备份中...
                     </span>
                 </button>
             </div>
@@ -38,7 +38,7 @@
             <template x-if="status.last_backup">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="text-sm text-gray-600 mb-1">Last Backup Status</div>
+                        <div class="text-sm text-gray-600 mb-1">上次备份状态</div>
                         <div class="flex items-center">
                             <span
                                 :class="{
@@ -53,17 +53,17 @@
                     </div>
 
                     <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="text-sm text-gray-600 mb-1">Last Backup Time</div>
+                        <div class="text-sm text-gray-600 mb-1">上次备份时间</div>
                         <div class="text-lg font-semibold text-gray-900" x-text="formatDate(status.last_backup.started_at)"></div>
                     </div>
 
                     <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="text-sm text-gray-600 mb-1">Files Changed</div>
+                        <div class="text-sm text-gray-600 mb-1">变更文件数</div>
                         <div class="text-lg font-semibold text-gray-900" x-text="status.last_backup.files_changed || 0"></div>
                     </div>
 
                     <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="text-sm text-gray-600 mb-1">Duration</div>
+                        <div class="text-sm text-gray-600 mb-1">耗时</div>
                         <div class="text-lg font-semibold text-gray-900" x-text="formatDuration(status.last_backup.duration_ms)"></div>
                     </div>
                 </div>
@@ -71,47 +71,42 @@
 
             <template x-if="!status.last_backup">
                 <div class="text-center py-8 text-gray-500">
-                    No backup history yet. Click "Trigger Backup" to start.
+                    暂无备份记录，点击「立即备份」开始。
                 </div>
             </template>
         </div>
 
         <!-- Workspace Info -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-5">
-                <div class="flex items-center mb-2">
-                    <span class="text-2xl mr-2">🤖</span>
-                    <h3 class="text-lg font-semibold text-gray-800">KupoBot Workspace</h3>
+            <template x-for="[name, info] in Object.entries(status.workspaces || {})" :key="name">
+                <div class="bg-white rounded-lg shadow-md p-5">
+                    <div class="flex items-center mb-2">
+                        <span class="text-2xl mr-2">📁</span>
+                        <h3 class="text-lg font-semibold text-gray-800" x-text="name"></h3>
+                    </div>
+                    <div class="text-sm text-gray-600 mb-1">
+                        路径: <span class="font-mono text-xs" x-text="info.path"></span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        最后修改: <span class="font-medium" x-text="formatDate(info.mod_time)"></span>
+                    </div>
                 </div>
-                <div class="text-sm text-gray-600">
-                    Last Modified: <span class="font-medium" x-text="formatDate(status.kupobot_mod_time)"></span>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-5">
-                <div class="flex items-center mb-2">
-                    <span class="text-2xl mr-2">🌱</span>
-                    <h3 class="text-lg font-semibold text-gray-800">WanDou Workspace</h3>
-                </div>
-                <div class="text-sm text-gray-600">
-                    Last Modified: <span class="font-medium" x-text="formatDate(status.wandou_mod_time)"></span>
-                </div>
-            </div>
+            </template>
         </div>
 
         <!-- Backup History -->
         <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Backup History</h2>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">备份历史</h2>
 
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-gray-50 border-b-2 border-gray-200">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Time</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Files</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Commit</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Duration</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 tracking-wider">时间</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 tracking-wider">状态</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 tracking-wider">文件数</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 tracking-wider">Commit</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 tracking-wider">耗时</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -142,7 +137,7 @@
 
                 <template x-if="backups.length === 0">
                     <div class="text-center py-8 text-gray-500">
-                        No backup history available.
+                        暂无备份记录。
                     </div>
                 </template>
             </div>
@@ -150,20 +145,20 @@
             <!-- Pagination -->
             <div class="mt-4 flex items-center justify-between" x-show="totalPages > 1">
                 <div class="text-sm text-gray-600">
-                    Page <span x-text="currentPage"></span> of <span x-text="totalPages"></span>
+                    第 <span x-text="currentPage"></span> / <span x-text="totalPages"></span> 页
                 </div>
                 <div class="flex gap-2">
                     <button
                         @click="loadBackups(currentPage - 1)"
                         :disabled="currentPage === 1"
                         class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Previous
+                        上一页
                     </button>
                     <button
                         @click="loadBackups(currentPage + 1)"
                         :disabled="currentPage === totalPages"
                         class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Next
+                        下一页
                     </button>
                 </div>
             </div>
@@ -176,8 +171,7 @@
                 status: {
                     is_running: false,
                     last_backup: null,
-                    kupobot_mod_time: null,
-                    wandou_mod_time: null
+                    workspaces: {}
                 },
                 backups: [],
                 currentPage: 1,
