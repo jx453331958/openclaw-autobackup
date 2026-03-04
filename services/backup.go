@@ -80,11 +80,7 @@ func runBackup(cfg *config.Config, backup *models.Backup) error {
 		return fmt.Errorf("parse workspaces failed: %w", err)
 	}
 
-	if len(workspaces) == 0 {
-		return fmt.Errorf("no workspaces configured")
-	}
-
-	// Sync each workspace
+	// Sync each workspace (skip if none configured — useful when BACKUP_REPO is the workspace itself)
 	for name, path := range workspaces {
 		dstPath := filepath.Join(repoPath, name+"-backup")
 		if err := syncWorkspace(path, dstPath); err != nil {
