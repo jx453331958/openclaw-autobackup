@@ -1,0 +1,15 @@
+services:
+  openclaw-autobackup:
+    image: ghcr.io/jx453331958/openclaw-autobackup:latest
+    container_name: openclaw-autobackup
+    restart: unless-stopped
+    ports:
+      - "3458:3458"
+    volumes:
+      - ./data:/app/data
+      - ${BACKUP_REPO}:${BACKUP_REPO}
+      - ${SSH_KEY_PATH}:${SSH_KEY_PATH}:ro
+      # Mount workspace directories (add your workspace paths here)
+      # - /path/to/workspace1:/path/to/workspace1:ro
+    env_file:
+      - .env

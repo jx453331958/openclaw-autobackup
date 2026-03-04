@@ -30,7 +30,23 @@
 
 ## 快速开始
 
-### 一键安装
+### Docker 部署（推荐）
+
+```bash
+# 创建项目目录
+mkdir openclaw-autobackup && cd openclaw-autobackup
+
+# 下载配置文件
+curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/.env.example
+curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/docker-compose.yml
+cp .env.example .env
+vim .env  # 编辑配置
+
+# 编辑 docker-compose.yml 添加工作区目录挂载，然后启动
+docker compose up -d
+```
+
+### 一键安装（从源码）
 
 ```bash
 git clone https://github.com/jx453331958/openclaw-autobackup.git
@@ -164,6 +180,33 @@ sudo systemctl start openclaw-autobackup
 
 # 日志
 journalctl -u openclaw-autobackup -f
+```
+
+### Docker 部署
+
+```bash
+# 创建目录并下载配置文件
+mkdir openclaw-autobackup && cd openclaw-autobackup
+curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/.env.example
+curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/docker-compose.yml
+cp .env.example .env
+```
+
+编辑 `.env` 配置后，编辑 `docker-compose.yml` 添加工作区目录挂载：
+
+```yaml
+volumes:
+  - ./data:/app/data
+  - /path/to/backup-repo:/path/to/backup-repo
+  - /path/to/.ssh/id_rsa:/path/to/.ssh/id_rsa:ro
+  - /path/to/workspace1:/path/to/workspace1:ro
+  - /path/to/workspace2:/path/to/workspace2:ro
+```
+
+启动服务：
+
+```bash
+docker compose up -d
 ```
 
 ### 卸载

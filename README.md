@@ -6,6 +6,23 @@ A generic backup tool for automatically backing up multiple workspaces to a Git 
 
 ## Quick Start
 
+### Docker (Recommended)
+
+```bash
+# Create project directory
+mkdir openclaw-autobackup && cd openclaw-autobackup
+
+# Download config files
+curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/.env.example
+curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/docker-compose.yml
+cp .env.example .env && vim .env  # Edit configuration
+
+# Add workspace volume mounts to docker-compose.yml, then start
+docker compose up -d
+```
+
+### From Source
+
 ```bash
 git clone https://github.com/jx453331958/openclaw-autobackup.git
 cd openclaw-autobackup
@@ -173,14 +190,31 @@ sudo systemctl enable openclaw-autobackup
 sudo systemctl start openclaw-autobackup
 ```
 
-### Docker (Optional)
+### Docker
 
-```dockerfile
-FROM golang:1.25-alpine
-WORKDIR /app
-COPY . .
-RUN go build -o openclaw-autobackup
-CMD ["./openclaw-autobackup"]
+```bash
+# Create directory and download files
+mkdir openclaw-autobackup && cd openclaw-autobackup
+curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/.env.example
+curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/docker-compose.yml
+cp .env.example .env
+```
+
+Edit `.env` with your configuration, then edit `docker-compose.yml` to add workspace volume mounts:
+
+```yaml
+volumes:
+  - ./data:/app/data
+  - /path/to/backup-repo:/path/to/backup-repo
+  - /path/to/.ssh/id_rsa:/path/to/.ssh/id_rsa:ro
+  - /path/to/workspace1:/path/to/workspace1:ro
+  - /path/to/workspace2:/path/to/workspace2:ro
+```
+
+Start the service:
+
+```bash
+docker compose up -d
 ```
 
 ## Project Structure

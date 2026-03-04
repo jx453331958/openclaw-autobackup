@@ -5,6 +5,7 @@ import (
 	"openclaw-autobackup/models"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -205,23 +206,9 @@ func GetWorkspaces(cfg *config.Config) (map[string]string, error) {
 }
 
 func GetWorkspaceModTime(path string) (time.Time, error) {
-	// Get the most recent file modification time via find
-	cmd := exec.Command("find", path, "-maxdepth", "2", "-name", "*.md", "-newer", path, "-print", "-quit")
-	output, err := cmd.CombinedOutput()
-	if err != nil || strings.TrimSpace(string(output)) == "" {
-		// Fallback to directory mtime
-		cmd = exec.Command("stat", "-f", "%m", path)
-		output, err = cmd.CombinedOutput()
-		if err != nil {
-			return time.Time{}, err
-		}
-	}
-	// Just return current stat
-	cmd = exec.Command("stat", "-f", "%Sm", "-t", "%Y-%m-%dT%H:%M:%S", path)
-	output, err = cmd.CombinedOutput()
+	info, err := os.Stat(path)
 	if err != nil {
 		return time.Time{}, err
 	}
-	t, err := time.Parse("2006-01-02T15:04:05", strings.TrimSpace(string(output)))
-	return t, err
+	return info.ModTime(), nil
 }
