@@ -188,13 +188,21 @@ func commitAndPush(cfg *config.Config, repoPath string) (int, string, string, er
 		}
 	}
 
-	// Determine SSH port: ssh.github.com requires port 443; github.com uses default port 22
-	sshPort := "22"
-	if strings.Contains(cfg.GitRemote, "ssh.github.com") {
-		sshPort = "443"
+	// Build SSH command based on remote type:
+	// - SSH alias (e.g. github-openclaw-backup): rely on ~/.ssh/config for port/key, only add StrictHostKeyChecking
+	// - ssh.github.com: explicit port 443 + key
+	// - github.com or others: explicit port 22 + key
+	var gitSSHCmd string
+	if strings.Contains(cfg.GitRemote, "github.com") {
+		sshPort := "22"
+		if strings.Contains(cfg.GitRemote, "ssh.github.com") {
+			sshPort = "443"
+		}
+		gitSSHCmd = fmt.Sprintf(`GIT_SSH_COMMAND="ssh -i %s -o StrictHostKeyChecking=no -p %s" git push`, sshKeyPath, sshPort)
+	} else {
+		// SSH alias: let ~/.ssh/config handle port and identity
+		gitSSHCmd = fmt.Sprintf(`GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git push`)
 	}
-
-	gitSSHCmd := fmt.Sprintf(`GIT_SSH_COMMAND="ssh -i %s -o StrictHostKeyChecking=no -p %s" git push`, sshKeyPath, sshPort)
 	cmd = exec.Command("sh", "-c", gitSSHCmd)
 	cmd.Dir = repoPath
 	if pushOut, err := cmd.CombinedOutput(); err != nil {
