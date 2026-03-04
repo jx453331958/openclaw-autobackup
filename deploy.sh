@@ -47,7 +47,7 @@ prompt_required() {
     while [ -z "$REPLY" ]; do
         read -p "$(echo -e "${CYAN}$msg${NC}: ")" REPLY
         if [ -z "$REPLY" ]; then
-            print_error "This field is required"
+            print_error "此项为必填项"
         fi
     done
 }
@@ -55,16 +55,16 @@ prompt_required() {
 # Check if docker is installed and running
 check_docker() {
     if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed. Please install Docker first."
+        print_error "未检测到 Docker，请先安装 Docker"
         exit 1
     fi
 
     if ! docker info &> /dev/null; then
-        print_error "Docker daemon is not running. Please start Docker."
+        print_error "Docker 服务未运行，请先启动 Docker"
         exit 1
     fi
 
-    print_info "Docker is available"
+    print_info "Docker 环境就绪"
 }
 
 # Load .env file variables
@@ -95,14 +95,13 @@ get_host_ip() {
 interactive_setup() {
     echo ""
     echo -e "${BOLD}========================================${NC}"
-    echo -e "${BOLD}  OpenClaw AutoBackup Setup Wizard${NC}"
+    echo -e "${BOLD}  OpenClaw AutoBackup 配置向导${NC}"
     echo -e "${BOLD}========================================${NC}"
     echo ""
 
     # --- Workspaces ---
-    echo -e "${BOLD}1/5 Workspace Configuration${NC}"
-    echo "  Add the directories you want to back up."
-    echo "  Each workspace needs a name and its absolute path."
+    echo -e "${BOLD}1/5 工作区配置${NC}"
+    echo "  添加需要备份的目录，每个工作区需要一个名称和绝对路径。"
     echo ""
 
     local workspaces_str=""
@@ -110,23 +109,23 @@ interactive_setup() {
     local ws_index=1
 
     while true; do
-        echo -e "  ${BOLD}Workspace #${ws_index}${NC}"
-        prompt "    Name (e.g. my-project)"
+        echo -e "  ${BOLD}工作区 #${ws_index}${NC}"
+        prompt "    名称（如 my-project）"
         local ws_name="$REPLY"
         if [ -z "$ws_name" ]; then
             if [ -z "$workspaces_str" ]; then
-                print_error "  At least one workspace is required"
+                print_error "  至少需要配置一个工作区"
                 continue
             fi
             break
         fi
 
-        prompt_required "    Path (absolute path, e.g. /home/user/projects/my-project)"
+        prompt_required "    路径（绝对路径，如 /home/user/projects/my-project）"
         local ws_path="$REPLY"
 
         # Validate path format
         if [[ "$ws_path" != /* ]]; then
-            print_error "  Path must be absolute (start with /)"
+            print_error "  路径必须是绝对路径（以 / 开头）"
             continue
         fi
 
@@ -135,11 +134,11 @@ interactive_setup() {
         fi
         workspaces_str="${workspaces_str}${ws_name}:${ws_path}"
         workspace_volumes="${workspace_volumes}      - ${ws_path}:${ws_path}:ro\n"
-        print_info "  Added: ${ws_name} -> ${ws_path}"
+        print_info "  已添加: ${ws_name} -> ${ws_path}"
         echo ""
 
         ws_index=$((ws_index + 1))
-        prompt "  Add another workspace? (y/N)"
+        prompt "  继续添加工作区？(y/N)"
         if [[ ! "$REPLY" =~ ^[Yy] ]]; then
             break
         fi
@@ -148,50 +147,49 @@ interactive_setup() {
 
     # --- Backup Repo ---
     echo ""
-    echo -e "${BOLD}2/5 Backup Repository${NC}"
-    echo "  Local git repository where backups will be stored."
-    echo "  If it doesn't exist, it will be created automatically."
+    echo -e "${BOLD}2/5 备份仓库${NC}"
+    echo "  备份文件存储的本地 Git 仓库路径，不存在会自动创建。"
     echo ""
-    prompt_required "  Backup repo path (e.g. /home/user/backup-repo)"
+    prompt_required "  备份仓库路径（如 /home/user/backup-repo）"
     local backup_repo="$REPLY"
 
     # --- Git Remote ---
     echo ""
-    echo -e "${BOLD}3/5 Git Remote${NC}"
-    echo "  Remote URL to push backups to (optional, press Enter to skip)."
+    echo -e "${BOLD}3/5 Git 远程仓库${NC}"
+    echo "  备份推送的远程仓库地址（可选，直接回车跳过）。"
     echo ""
-    prompt "  Git remote URL (e.g. git@github.com:user/backup.git)"
+    prompt "  远程仓库地址（如 git@github.com:user/backup.git）"
     local git_remote="$REPLY"
 
     # --- SSH Key ---
     local ssh_key_path=""
     if [ -n "$git_remote" ]; then
         echo ""
-        echo -e "${BOLD}4/5 SSH Key${NC}"
-        echo "  SSH private key for pushing to the remote repository."
+        echo -e "${BOLD}4/5 SSH 密钥${NC}"
+        echo "  用于推送到远程仓库的 SSH 私钥。"
         echo ""
         local default_key="$HOME/.ssh/id_rsa"
         # Try to find an existing key
         if [ ! -f "$default_key" ] && [ -f "$HOME/.ssh/id_ed25519" ]; then
             default_key="$HOME/.ssh/id_ed25519"
         fi
-        prompt "  SSH key path" "$default_key"
+        prompt "  SSH 密钥路径" "$default_key"
         ssh_key_path="$REPLY"
     else
         echo ""
-        echo -e "${BOLD}4/5 SSH Key${NC} (skipped, no git remote configured)"
+        echo -e "${BOLD}4/5 SSH 密钥${NC}（已跳过，未配置远程仓库）"
     fi
 
     # --- Optional Settings ---
     echo ""
-    echo -e "${BOLD}5/5 Optional Settings${NC}"
+    echo -e "${BOLD}5/5 可选配置${NC}"
     echo ""
-    prompt "  Web dashboard port" "3458"
+    prompt "  Web 面板端口" "3458"
     local port="$REPLY"
 
     echo ""
-    echo "  Telegram notifications (press Enter to skip):"
-    prompt "    Bot token"
+    echo "  Telegram 通知（直接回车跳过）："
+    prompt "    Bot Token"
     local tg_token="$REPLY"
     local tg_chat_id=""
     if [ -n "$tg_token" ]; then
@@ -201,7 +199,7 @@ interactive_setup() {
 
     # --- Init backup repo ---
     if [ ! -d "$backup_repo" ]; then
-        print_info "Creating backup repository: $backup_repo"
+        print_info "正在创建备份仓库: $backup_repo"
         mkdir -p "$backup_repo"
         git init "$backup_repo" > /dev/null 2>&1
         git -C "$backup_repo" commit --allow-empty -m "init" > /dev/null 2>&1
@@ -213,7 +211,7 @@ interactive_setup() {
     fi
 
     # --- Generate .env ---
-    print_info "Generating .env..."
+    print_info "正在生成 .env..."
     cat > .env << ENVEOF
 # Server Configuration
 PORT=${port}
@@ -239,7 +237,7 @@ TELEGRAM_CHAT_ID=${tg_chat_id}
 ENVEOF
 
     # --- Generate docker-compose.yml ---
-    print_info "Generating docker-compose.yml..."
+    print_info "正在生成 docker-compose.yml..."
 
     local ssh_volume=""
     if [ -n "$ssh_key_path" ]; then
@@ -266,20 +264,20 @@ COMPOSEEOF
     # --- Summary ---
     echo ""
     echo -e "${BOLD}========================================${NC}"
-    echo -e "${BOLD}  Configuration Summary${NC}"
+    echo -e "${BOLD}  配置摘要${NC}"
     echo -e "${BOLD}========================================${NC}"
-    echo -e "  Workspaces:   ${GREEN}${workspaces_str}${NC}"
-    echo -e "  Backup repo:  ${GREEN}${backup_repo}${NC}"
-    echo -e "  Git remote:   ${GREEN}${git_remote:-not configured}${NC}"
-    echo -e "  SSH key:      ${GREEN}${ssh_key_path:-not configured}${NC}"
-    echo -e "  Port:         ${GREEN}${port}${NC}"
-    echo -e "  Telegram:     ${GREEN}${tg_token:+configured}${tg_token:-not configured}${NC}"
+    echo -e "  工作区:     ${GREEN}${workspaces_str}${NC}"
+    echo -e "  备份仓库:   ${GREEN}${backup_repo}${NC}"
+    echo -e "  远程仓库:   ${GREEN}${git_remote:-未配置}${NC}"
+    echo -e "  SSH 密钥:   ${GREEN}${ssh_key_path:-未配置}${NC}"
+    echo -e "  端口:       ${GREEN}${port}${NC}"
+    echo -e "  Telegram:   ${GREEN}${tg_token:+已配置}${tg_token:-未配置}${NC}"
     echo ""
 
-    read -p "$(echo -e "Proceed with deployment? (Y/n): ")" confirm
+    read -p "$(echo -e "确认部署？(Y/n): ")" confirm
     if [[ "$confirm" =~ ^[Nn] ]]; then
-        print_info "Configuration saved to .env and docker-compose.yml"
-        print_info "Run '$0 deploy' again when ready"
+        print_info "配置已保存到 .env 和 docker-compose.yml"
+        print_info "准备好后运行 '$0 deploy' 即可部署"
         exit 0
     fi
 }
@@ -293,13 +291,13 @@ init_data_dir() {
 
 # Deploy (first time)
 deploy() {
-    print_info "Starting deployment..."
+    print_info "开始部署..."
 
     check_docker
 
     if [ -f .env ] && [ -f docker-compose.yml ]; then
-        print_info "Existing configuration found"
-        read -p "$(echo -e "${CYAN}Reconfigure? (y/N)${NC}: ")" reconfigure
+        print_info "检测到已有配置"
+        read -p "$(echo -e "${CYAN}是否重新配置？(y/N)${NC}: ")" reconfigure
         if [[ "$reconfigure" =~ ^[Yy] ]]; then
             interactive_setup
         fi
@@ -310,13 +308,13 @@ deploy() {
     load_env
     init_data_dir
 
-    print_info "Pulling latest image..."
+    print_info "正在拉取最新镜像..."
     docker compose pull
 
-    print_info "Starting containers..."
+    print_info "正在启动容器..."
     docker compose up -d
 
-    print_info "Waiting for service to be ready..."
+    print_info "等待服务就绪..."
     sleep 3
 
     if docker compose ps | grep -q "Up"; then
@@ -324,50 +322,50 @@ deploy() {
         local port="${PORT:-3458}"
         echo ""
         echo -e "${GREEN}============================================${NC}"
-        echo -e "${GREEN}  OpenClaw AutoBackup is now running!${NC}"
-        echo -e "${GREEN}  Dashboard: http://${host_ip}:${port}${NC}"
+        echo -e "${GREEN}  OpenClaw AutoBackup 已成功运行！${NC}"
+        echo -e "${GREEN}  监控面板: http://${host_ip}:${port}${NC}"
         echo -e "${GREEN}============================================${NC}"
     else
-        print_error "Deployment failed. Check logs with: $0 logs"
+        print_error "部署失败，请查看日志: $0 logs"
         exit 1
     fi
 }
 
 # Update (pull latest image and restart)
 update() {
-    print_info "Starting update..."
+    print_info "开始更新..."
 
     check_docker
 
-    print_info "Pulling latest image..."
+    print_info "正在拉取最新镜像..."
     docker compose pull
 
-    print_info "Restarting containers with new image..."
+    print_info "正在使用新镜像重启..."
     docker compose up -d
 
-    print_info "Waiting for service to be ready..."
+    print_info "等待服务就绪..."
     sleep 3
 
     if docker compose ps | grep -q "Up"; then
-        print_info "Update successful!"
+        print_info "更新成功！"
     else
-        print_error "Update failed. Check logs with: $0 logs"
+        print_error "更新失败，请查看日志: $0 logs"
         exit 1
     fi
 }
 
 # Stop service
 stop() {
-    print_info "Stopping service..."
+    print_info "正在停止服务..."
     docker compose down
-    print_info "Service stopped"
+    print_info "服务已停止"
 }
 
 # Restart service
 restart() {
-    print_info "Restarting service..."
+    print_info "正在重启服务..."
     docker compose restart
-    print_info "Service restarted"
+    print_info "服务已重启"
 }
 
 # Show logs
@@ -378,10 +376,10 @@ logs() {
 # Show status
 status() {
     echo ""
-    print_info "Container status:"
+    print_info "容器状态:"
     docker compose ps
     echo ""
-    print_info "Recent logs:"
+    print_info "最近日志:"
     docker compose logs --tail=20
 }
 
@@ -390,53 +388,53 @@ backup() {
     BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).db"
     if [ -f data/backup.db ]; then
         if cp data/backup.db "data/$BACKUP_FILE" 2>/dev/null; then
-            print_info "Database backed up to: data/$BACKUP_FILE"
+            print_info "数据库已备份到: data/$BACKUP_FILE"
         elif docker run --rm -v "$(pwd)/data:/data" alpine cp /data/backup.db "/data/$BACKUP_FILE"; then
-            print_info "Database backed up to: data/$BACKUP_FILE (via docker)"
+            print_info "数据库已备份到: data/$BACKUP_FILE（通过 docker）"
         else
-            print_error "Failed to backup database"
+            print_error "数据库备份失败"
             exit 1
         fi
     else
-        print_warn "No database file found to backup"
+        print_warn "未找到数据库文件"
     fi
 }
 
 # Clean up (remove containers and images)
 clean() {
-    print_warn "This will remove containers and images. Data in ./data will be preserved."
-    read -p "Are you sure? (y/N) " -n 1 -r
+    print_warn "此操作将删除容器和镜像，./data 目录中的数据会保留。"
+    read -p "确认删除？(y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         docker compose down --rmi all
-        print_info "Cleanup complete"
+        print_info "清理完成"
     else
-        print_info "Cleanup cancelled"
+        print_info "已取消"
     fi
 }
 
 # Show help
 show_help() {
-    echo "OpenClaw AutoBackup Management Script"
+    echo "OpenClaw AutoBackup 管理脚本"
     echo ""
-    echo "Usage: $0 <command>"
+    echo "用法: $0 <命令>"
     echo ""
-    echo "Commands:"
-    echo "  deploy   - Interactive setup and deployment"
-    echo "  update   - Pull latest image and restart"
-    echo "  start    - Start the service"
-    echo "  stop     - Stop the service"
-    echo "  restart  - Restart the service"
-    echo "  status   - Show service status and recent logs"
-    echo "  logs     - Follow container logs"
-    echo "  backup   - Backup the database"
-    echo "  clean    - Remove containers and images (preserves data)"
-    echo "  help     - Show this help message"
+    echo "命令:"
+    echo "  deploy   - 交互式配置并部署"
+    echo "  update   - 拉取最新镜像并重启"
+    echo "  start    - 启动服务"
+    echo "  stop     - 停止服务"
+    echo "  restart  - 重启服务"
+    echo "  status   - 查看服务状态和最近日志"
+    echo "  logs     - 实时查看日志"
+    echo "  backup   - 备份数据库"
+    echo "  clean    - 删除容器和镜像（保留数据）"
+    echo "  help     - 显示帮助信息"
     echo ""
-    echo "Examples:"
-    echo "  $0 deploy    # First-time interactive setup"
-    echo "  $0 update    # Update to latest version"
-    echo "  $0 logs      # View logs"
+    echo "示例:"
+    echo "  $0 deploy    # 首次部署"
+    echo "  $0 update    # 更新到最新版本"
+    echo "  $0 logs      # 查看日志"
 }
 
 # Main
@@ -449,7 +447,7 @@ case "${1:-}" in
         ;;
     start)
         docker compose up -d
-        print_info "Service started"
+        print_info "服务已启动"
         ;;
     stop)
         stop
@@ -476,7 +474,7 @@ case "${1:-}" in
         if [ -z "${1:-}" ]; then
             show_help
         else
-            print_error "Unknown command: $1"
+            print_error "未知命令: $1"
             echo ""
             show_help
             exit 1
