@@ -76,24 +76,6 @@ volumes:
 | `/api/status` | GET | 获取备份状态和工作区信息 |
 | `/api/backups` | GET | 获取备份历史（支持分页） |
 | `/api/backups/trigger` | POST | 触发手动备份 |
-
-## 从源码安装（可选）
-
-```bash
-git clone https://github.com/jx453331958/openclaw-autobackup.git
-cd openclaw-autobackup
-cp .env.example .env && vim .env
-chmod +x setup.sh && ./setup.sh
-```
-
-需要：Go 1.25+、Git、rsync、SSH 密钥。
-
-## 安全提示
-
-- 不要将 `.env` 文件提交到版本控制
-- SSH 密钥保持适当权限（`chmod 600`）
-- 尽可能使用只读 SSH 密钥
-
 ## 许可证
 
 MIT License

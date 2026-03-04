@@ -76,24 +76,6 @@ volumes:
 | `/api/status` | GET | Current status and workspace info |
 | `/api/backups` | GET | Backup history (paginated) |
 | `/api/backups/trigger` | POST | Trigger manual backup |
-
-## From Source (Alternative)
-
-```bash
-git clone https://github.com/jx453331958/openclaw-autobackup.git
-cd openclaw-autobackup
-cp .env.example .env && vim .env
-chmod +x setup.sh && ./setup.sh
-```
-
-Requires: Go 1.25+, Git, rsync, SSH key.
-
-## Security Notes
-
-- Never commit `.env` to version control
-- Keep SSH keys with proper permissions (`chmod 600`)
-- Use read-only SSH keys when possible
-
 ## License
 
 MIT License
