@@ -2,272 +2,98 @@
 
 [English](README.md) | 简体中文
 
-一个通用的自动备份工具，支持多工作区文件自动同步到 Git 仓库，带 Web 监控面板。
-
-## 功能特性
-
-- **动态工作区配置**：通过环境变量灵活配置多个工作区
-- **选择性文件备份**：只备份重要的 agent 文件（*.md、memory/、skills/、.clawhub/、canvas/）
-- **自动 Git 同步**：自动 commit 和 push 到远程仓库
-- **Web 监控面板**：实时查看备份状态和历史记录
-- **定时备份**：可配置的自动备份（默认每小时）
-- **Telegram 通知**：备份成功/失败时可选通知
-- **REST API**：通过 HTTP 接口触发备份和查询状态
-
-## 技术栈
-
-- **后端**：Go + Gin + GORM + SQLite
-- **前端**：Tailwind CSS (CDN) + Alpine.js
-- **调度器**：robfig/cron
-- **默认端口**：3458
-
-## 前置要求
-
-- Go 1.21 或更高版本
-- Git
-- rsync
-- 用于 Git push 的 SSH 密钥
+轻量级多工作区自动备份工具，支持定时同步到 Git 仓库，带 Web 监控面板和 Telegram 通知。
 
 ## 快速开始
 
-### Docker 部署（推荐）
-
 ```bash
-# 创建项目目录
 mkdir openclaw-autobackup && cd openclaw-autobackup
-
-# 下载配置文件
-curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/.env.example
-curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/docker-compose.yml
-cp .env.example .env
-vim .env  # 编辑配置
-
-# 编辑 docker-compose.yml 添加工作区目录挂载，然后启动
-docker compose up -d
+curl -sL https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/deploy.sh -o deploy.sh
+chmod +x deploy.sh
+./deploy.sh deploy
 ```
 
-### 一键安装（从源码）
+脚本会引导你完成配置并启动服务。
 
-```bash
-git clone https://github.com/jx453331958/openclaw-autobackup.git
-cd openclaw-autobackup
+## 功能特性
 
-# 复制并编辑配置
-cp .env.example .env
-vim .env  # 编辑你的配置
-
-# 一键安装（自动检测 macOS/Linux，设置开机启动）
-chmod +x setup.sh
-./setup.sh
-```
-
-脚本会自动：
-- 编译项目
-- 检测操作系统（macOS 用 launchd，Linux 用 systemd）
-- 配置开机自启动
-- 启动服务
-
-### 手动安装
-
-```bash
-# 编译
-go build -o openclaw-autobackup
-
-# 运行
-./start.sh
-```
+- **多工作区备份**：通过环境变量灵活配置多个工作区
+- **选择性同步**：只备份关键文件（*.md、memory/、skills/、.clawhub/、canvas/）
+- **自动 Git 同步**：定时 commit 并 push 到远程仓库（默认每小时）
+- **Web 监控面板**：实时查看备份状态、历史记录、手动触发
+- **Telegram 通知**：备份成功/失败时可选通知
+- **REST API**：通过 HTTP 接口触发备份和查询状态
 
 ## 配置说明
 
-编辑 `.env` 文件：
+### 环境变量 (.env)
 
-### 必填配置
+| 变量 | 必填 | 默认值 | 说明 |
+|------|------|--------|------|
+| `WORKSPACES` | 是 | - | 格式：`名称1:路径1,名称2:路径2` |
+| `BACKUP_REPO` | 是 | - | 本地 Git 备份仓库路径 |
+| `GIT_REMOTE` | 是 | - | Git 远程地址（如 `git@github.com:user/repo.git`） |
+| `SSH_KEY_PATH` | 是 | - | SSH 私钥路径，用于 git push |
+| `PORT` | 否 | `3458` | Web 服务端口 |
+| `DATABASE_URL` | 否 | `./data/backup.db` | SQLite 数据库路径 |
+| `TELEGRAM_BOT_TOKEN` | 否 | - | Telegram Bot Token |
+| `TELEGRAM_CHAT_ID` | 否 | - | Telegram Chat ID |
 
-```bash
-# 工作区配置
-# 格式：'名称1:路径1,名称2:路径2'
-# 每个工作区会备份到 {名称}-backup/ 目录
-WORKSPACES=workspace1:/path/to/workspace1,workspace2:/path/to/workspace2
+### 目录挂载 (docker-compose.yml)
 
-# 备份仓库路径（本地 Git 仓库）
-BACKUP_REPO=/path/to/backup/repository
+编辑 `docker-compose.yml` 将你的目录挂载到容器中：
 
-# Git 远程地址
-GIT_REMOTE=git@github.com:username/backup-repo.git
-
-# Git push 用的 SSH 密钥路径
-SSH_KEY_PATH=/path/to/.ssh/id_rsa
+```yaml
+volumes:
+  - ./data:/app/data
+  - /path/to/backup-repo:/path/to/backup-repo
+  - /home/user/.ssh/id_rsa:/home/user/.ssh/id_rsa:ro
+  - /path/to/workspace1:/path/to/workspace1:ro
+  - /path/to/workspace2:/path/to/workspace2:ro
 ```
 
-### 可选配置
+**注意**：`.env` 中的路径必须与容器内的挂载路径一致。
+
+## 服务管理
 
 ```bash
-# 服务端口（默认 3458）
-PORT=3458
-
-# 数据库路径（默认 ./data/backup.db）
-DATABASE_URL=./data/backup.db
-
-# Telegram 通知（可选）
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
+./deploy.sh deploy    # 首次部署（下载文件 + 初始化 + 拉取镜像 + 启动）
+./deploy.sh update    # 拉取最新镜像并重启
+./deploy.sh start     # 启动服务
+./deploy.sh stop      # 停止服务
+./deploy.sh restart   # 重启服务
+./deploy.sh status    # 查看状态和最近日志
+./deploy.sh logs      # 实时查看日志
+./deploy.sh backup    # 备份数据库
+./deploy.sh clean     # 删除容器和镜像（保留数据）
 ```
 
-## 使用方法
-
-### Web 面板
-
-启动后访问 `http://localhost:3458` 查看：
-- 备份状态
-- 历史记录
-- 手动触发备份
-
-### API 接口
+## API 接口
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
 | `/` | GET | Web 面板 |
 | `/api/status` | GET | 获取备份状态和工作区信息 |
 | `/api/backups` | GET | 获取备份历史（支持分页） |
-| `/api/backup` | POST | 触发手动备份 |
+| `/api/backups/trigger` | POST | 触发手动备份 |
 
-### 手动触发备份
-
-```bash
-curl -X POST http://localhost:3458/api/backup
-```
-
-## 备份流程
-
-对于每个配置的工作区，工具会：
-
-1. 同步工作区文件到 `{BACKUP_REPO}/{工作区名称}-backup/`
-2. 只包含以下内容：
-   - `*.md` 文件
-   - `memory/` 目录
-   - `skills/` 目录
-   - `.clawhub/` 目录
-   - `canvas/` 目录
-3. 提交更改到本地 Git 仓库
-4. 使用指定的 SSH 密钥 push 到远程仓库
-
-## 服务管理
-
-### macOS (launchd)
+## 从源码安装（可选）
 
 ```bash
-# 停止
-launchctl unload ~/Library/LaunchAgents/com.openclaw-autobackup.plist
-
-# 启动
-launchctl load ~/Library/LaunchAgents/com.openclaw-autobackup.plist
-
-# 查看日志
-tail -f logs/launchd.log
+git clone https://github.com/jx453331958/openclaw-autobackup.git
+cd openclaw-autobackup
+cp .env.example .env && vim .env
+chmod +x setup.sh && ./setup.sh
 ```
 
-### Linux (systemd)
-
-```bash
-# 状态
-sudo systemctl status openclaw-autobackup
-
-# 停止
-sudo systemctl stop openclaw-autobackup
-
-# 启动
-sudo systemctl start openclaw-autobackup
-
-# 日志
-journalctl -u openclaw-autobackup -f
-```
-
-### Docker 部署
-
-```bash
-# 创建目录并下载配置文件
-mkdir openclaw-autobackup && cd openclaw-autobackup
-curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/.env.example
-curl -O https://raw.githubusercontent.com/jx453331958/openclaw-autobackup/main/docker-compose.yml
-cp .env.example .env
-```
-
-编辑 `.env` 配置后，编辑 `docker-compose.yml` 添加工作区目录挂载：
-
-```yaml
-volumes:
-  - ./data:/app/data
-  - /path/to/backup-repo:/path/to/backup-repo
-  - /path/to/.ssh/id_rsa:/path/to/.ssh/id_rsa:ro
-  - /path/to/workspace1:/path/to/workspace1:ro
-  - /path/to/workspace2:/path/to/workspace2:ro
-```
-
-启动服务：
-
-```bash
-docker compose up -d
-```
-
-### 卸载
-
-```bash
-./setup.sh uninstall
-```
-
-## 项目结构
-
-```
-openclaw-autobackup/
-├── config/          # 配置加载
-├── handlers/        # HTTP 请求处理
-├── models/          # 数据库模型
-├── services/        # 业务逻辑（备份执行、调度）
-├── templates/       # HTML 模板（嵌入）
-├── static/          # 静态资源
-├── data/            # SQLite 数据库（运行时创建）
-├── logs/            # 日志文件（运行时创建）
-├── main.go          # 程序入口
-├── setup.sh         # 一键安装脚本
-├── start.sh         # 启动脚本
-└── .env             # 环境配置（不提交到 git）
-```
+需要：Go 1.25+、Git、rsync、SSH 密钥。
 
 ## 安全提示
 
 - 不要将 `.env` 文件提交到版本控制
-- SSH 密钥保持适当权限（chmod 600）
-- 如果可能，使用只读 SSH 密钥
-- 定期轮换 Telegram bot token
-
-## 故障排除
-
-### SSH 错误导致备份失败
-
-检查：
-- SSH 密钥路径正确且可访问
-- SSH 密钥权限正确（chmod 600）
-- SSH 密钥已添加到 Git 服务商（GitHub、GitLab 等）
-- Git 远程地址使用 SSH 格式（git@...）
-
-### "未配置工作区"错误
-
-检查：
-- `.env` 中设置了 `WORKSPACES` 环境变量
-- 格式正确：`名称1:路径1,名称2:路径2`
-- 工作区路径存在且可访问
-
-### 权限拒绝错误
-
-确保应用程序有：
-- 工作区目录的读取权限
-- 备份仓库的写入权限
-- SSH 密钥文件的读取权限
+- SSH 密钥保持适当权限（`chmod 600`）
+- 尽可能使用只读 SSH 密钥
 
 ## 许可证
 
 MIT License
-
-## 贡献
-
-欢迎贡献代码。请提交 Issue 或 Pull Request。
