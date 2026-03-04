@@ -18,7 +18,7 @@ func SetConfig(config *config.Config) {
 
 func GetStatus(c *gin.Context) {
 	var lastBackup models.Backup
-	result := models.DB.Order("started_at DESC").First(&lastBackup)
+	result := models.DB.Order("id DESC").First(&lastBackup)
 
 	status := map[string]interface{}{
 		"is_running": services.IsBackupRunning(),
@@ -66,7 +66,7 @@ func GetBackups(c *gin.Context) {
 
 	var backups []models.Backup
 	offset := (page - 1) * pageSize
-	models.DB.Order("started_at DESC").Limit(pageSize).Offset(offset).Find(&backups)
+	models.DB.Order("id DESC").Limit(pageSize).Offset(offset).Find(&backups)
 
 	c.JSON(http.StatusOK, gin.H{
 		"backups":   backups,
