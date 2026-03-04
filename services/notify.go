@@ -26,6 +26,17 @@ func SendBackupNotification(cfg *config.Config, backup *models.Backup) {
 		status = "失败"
 	}
 
+	// Parse workspace names from config
+	var workspaceNames []string
+	if cfg.Workspaces != "" {
+		for _, pair := range strings.Split(cfg.Workspaces, ",") {
+			parts := strings.SplitN(strings.TrimSpace(pair), ":", 2)
+			if len(parts) == 2 {
+				workspaceNames = append(workspaceNames, strings.TrimSpace(parts[0]))
+			}
+		}
+	}
+
 	var duration string
 	if backup.DurationMs > 0 {
 		duration = fmt.Sprintf("%.1f秒", float64(backup.DurationMs)/1000)
@@ -35,6 +46,9 @@ func SendBackupNotification(cfg *config.Config, backup *models.Backup) {
 
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("%s <b>定时备份%s</b>\n\n", emoji, status))
+	if len(workspaceNames) > 0 {
+		sb.WriteString(fmt.Sprintf("📦 工作区: %s\n", strings.Join(workspaceNames, ", ")))
+	}
 	sb.WriteString(fmt.Sprintf("⏱ 耗时: %s\n", duration))
 	sb.WriteString(fmt.Sprintf("📁 变更文件: %d\n", backup.FilesChanged))
 
