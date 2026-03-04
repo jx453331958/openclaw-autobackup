@@ -10,8 +10,12 @@ import (
 func StartScheduler(cfg *config.Config) {
 	c := cron.New()
 
-	// Run every hour
-	_, err := c.AddFunc("0 * * * *", func() {
+	cronExpr := cfg.BackupCron
+	if cronExpr == "" {
+		cronExpr = "0 * * * *"
+	}
+
+	_, err := c.AddFunc(cronExpr, func() {
 		log.Println("Scheduled backup triggered")
 		if err := ExecuteBackup(cfg); err != nil {
 			log.Printf("Scheduled backup failed: %v", err)
@@ -23,5 +27,5 @@ func StartScheduler(cfg *config.Config) {
 	}
 
 	c.Start()
-	log.Println("Backup scheduler started (runs every hour)")
+	log.Printf("Backup scheduler started (cron: %s)", cronExpr)
 }

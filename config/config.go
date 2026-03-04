@@ -11,6 +11,7 @@ type Config struct {
 	BackupRepo       string
 	GitRemote        string
 	SSHKeyPath       string
+	BackupCron       string // Cron expression for backup schedule
 	TelegramBotToken string
 	TelegramChatID   string
 }
@@ -23,6 +24,7 @@ func Load() *Config {
 		BackupRepo:       getEnv("BACKUP_REPO", ""),
 		GitRemote:        getEnv("GIT_REMOTE", ""),
 		SSHKeyPath:       getEnv("SSH_KEY_PATH", ""),
+		BackupCron:       getEnv("BACKUP_CRON", "0 * * * *"),
 		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:   getEnv("TELEGRAM_CHAT_ID", ""),
 	}

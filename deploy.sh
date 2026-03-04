@@ -100,7 +100,7 @@ interactive_setup() {
     echo ""
 
     # --- Workspaces ---
-    echo -e "${BOLD}1/5 工作区配置${NC}"
+    echo -e "${BOLD}1/6 工作区配置${NC}"
     echo "  添加需要备份的目录，每个工作区需要一个名称和绝对路径。"
     echo ""
 
@@ -147,7 +147,7 @@ interactive_setup() {
 
     # --- Backup Repo ---
     echo ""
-    echo -e "${BOLD}2/5 备份仓库${NC}"
+    echo -e "${BOLD}2/6 备份仓库${NC}"
     echo "  备份文件存储的本地 Git 仓库路径，不存在会自动创建。"
     echo ""
     prompt_required "  备份仓库路径（如 /home/user/backup-repo）"
@@ -155,7 +155,7 @@ interactive_setup() {
 
     # --- Git Remote ---
     echo ""
-    echo -e "${BOLD}3/5 Git 远程仓库${NC}"
+    echo -e "${BOLD}3/6 Git 远程仓库${NC}"
     echo "  备份推送的远程仓库地址（可选，直接回车跳过）。"
     echo ""
     prompt "  远程仓库地址（如 git@github.com:user/backup.git）"
@@ -165,7 +165,7 @@ interactive_setup() {
     local ssh_key_path=""
     if [ -n "$git_remote" ]; then
         echo ""
-        echo -e "${BOLD}4/5 SSH 密钥${NC}"
+        echo -e "${BOLD}4/6 SSH 密钥${NC}"
         echo "  用于推送到远程仓库的 SSH 私钥。"
         echo ""
         local default_key="$HOME/.ssh/id_rsa"
@@ -177,12 +177,40 @@ interactive_setup() {
         ssh_key_path="$REPLY"
     else
         echo ""
-        echo -e "${BOLD}4/5 SSH 密钥${NC}（已跳过，未配置远程仓库）"
+        echo -e "${BOLD}4/6 SSH 密钥${NC}（已跳过，未配置远程仓库）"
     fi
 
     # --- Optional Settings ---
     echo ""
-    echo -e "${BOLD}5/5 可选配置${NC}"
+    echo -e "${BOLD}5/6 备份周期${NC}"
+    echo ""
+    echo "  选择备份频率："
+    echo "    1) 每小时（默认）"
+    echo "    2) 每 30 分钟"
+    echo "    3) 每 2 小时"
+    echo "    4) 每 6 小时"
+    echo "    5) 每天一次（午夜）"
+    echo "    6) 自定义 cron 表达式"
+    echo ""
+    prompt "  请选择" "1"
+    local backup_cron=""
+    case "$REPLY" in
+        1|"") backup_cron="0 * * * *" ;;
+        2) backup_cron="*/30 * * * *" ;;
+        3) backup_cron="0 */2 * * *" ;;
+        4) backup_cron="0 */6 * * *" ;;
+        5) backup_cron="0 0 * * *" ;;
+        6)
+            prompt_required "  输入 cron 表达式（如 */15 * * * *）"
+            backup_cron="$REPLY"
+            ;;
+        *) backup_cron="0 * * * *" ;;
+    esac
+    print_info "  备份周期: ${backup_cron}"
+
+    # --- Optional Settings ---
+    echo ""
+    echo -e "${BOLD}6/6 可选配置${NC}"
     echo ""
     prompt "  Web 面板端口" "3458"
     local port="$REPLY"
@@ -231,6 +259,9 @@ GIT_REMOTE=${git_remote}
 # SSH Key Path for Git Push
 SSH_KEY_PATH=${ssh_key_path}
 
+# Backup Schedule
+BACKUP_CRON=${backup_cron}
+
 # Telegram Notification Configuration (Optional)
 TELEGRAM_BOT_TOKEN=${tg_token}
 TELEGRAM_CHAT_ID=${tg_chat_id}
@@ -270,6 +301,7 @@ COMPOSEEOF
     echo -e "  备份仓库:   ${GREEN}${backup_repo}${NC}"
     echo -e "  远程仓库:   ${GREEN}${git_remote:-未配置}${NC}"
     echo -e "  SSH 密钥:   ${GREEN}${ssh_key_path:-未配置}${NC}"
+    echo -e "  备份周期:   ${GREEN}${backup_cron}${NC}"
     echo -e "  端口:       ${GREEN}${port}${NC}"
     echo -e "  Telegram:   ${GREEN}${tg_token:+已配置}${tg_token:-未配置}${NC}"
     echo ""
