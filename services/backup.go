@@ -125,15 +125,10 @@ func parseWorkspaces(workspacesStr string) (map[string]string, error) {
 	return workspaces, nil
 }
 
-// syncWorkspace syncs agent core files from source to destination
+// syncWorkspace syncs all files from source to destination, excluding .git
 func syncWorkspace(srcPath, dstPath string) error {
 	return runCmd("", "rsync", "-av", "--delete",
-		"--include=*.md",
-		"--include=memory/", "--include=memory/**",
-		"--include=skills/", "--include=skills/**",
-		"--include=.clawhub/", "--include=.clawhub/**",
-		"--include=canvas/", "--include=canvas/**",
-		"--exclude=*",
+		"--exclude=.git/",
 		srcPath+"/", dstPath+"/")
 }
 
@@ -186,7 +181,20 @@ func commitAndPush(cfg *config.Config, repoPath string) (int, string, string, er
 		return 0, "", "", fmt.Errorf("SSH_KEY_PATH not configured")
 	}
 
-	gitSSHCmd := fmt.Sprintf(`GIT_SSH_COMMAND="ssh -i %s -o StrictHostKeyChecking=no -p 443" git push`, sshKeyPath)
+	// Sync remote URL with GIT_REMOTE config before pushing
+	if cfg.GitRemote != "" {
+		if err := runCmd(repoPath, "git", "remote", "set-url", "origin", cfg.GitRemote); err != nil {
+			return 0, "", "", fmt.Errorf("git remote set-url failed: %w", err)
+		}
+	}
+
+	// Determine SSH port: ssh.github.com requires port 443; github.com uses default port 22
+	sshPort := "22"
+	if strings.Contains(cfg.GitRemote, "ssh.github.com") {
+		sshPort = "443"
+	}
+
+	gitSSHCmd := fmt.Sprintf(`GIT_SSH_COMMAND="ssh -i %s -o StrictHostKeyChecking=no -p %s" git push`, sshKeyPath, sshPort)
 	cmd = exec.Command("sh", "-c", gitSSHCmd)
 	cmd.Dir = repoPath
 	if pushOut, err := cmd.CombinedOutput(); err != nil {
