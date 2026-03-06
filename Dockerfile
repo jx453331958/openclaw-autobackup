@@ -15,9 +15,9 @@ RUN CGO_ENABLED=1 go build -o openclaw-autobackup .
 FROM alpine:latest
 
 RUN apk add --no-cache rsync git openssh-client tzdata && \
-    git config --global --add safe.directory '*' && \
-    git config --global user.email "openclaw-autobackup@noreply" && \
-    git config --global user.name "OpenClaw AutoBackup"
+    git config --system --add safe.directory '*' && \
+    git config --system user.email "openclaw-autobackup@noreply" && \
+    git config --system user.name "OpenClaw AutoBackup"
 
 WORKDIR /app
 

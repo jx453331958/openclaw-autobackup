@@ -192,20 +192,30 @@ func commitAndPush(cfg *config.Config, repoPath string) (int, string, string, er
 	// - SSH alias (e.g. github-openclaw-backup): rely on ~/.ssh/config for port/key, only add StrictHostKeyChecking
 	// - ssh.github.com: explicit port 443 + key
 	// - github.com or others: explicit port 22 + key
-	var gitSSHCmd string
+	var gitSSHEnv string
 	if strings.Contains(cfg.GitRemote, "github.com") {
 		sshPort := "22"
 		if strings.Contains(cfg.GitRemote, "ssh.github.com") {
 			sshPort = "443"
 		}
-		gitSSHCmd = fmt.Sprintf(`GIT_SSH_COMMAND="ssh -i %s -o StrictHostKeyChecking=no -p %s" git push`, sshKeyPath, sshPort)
+		gitSSHEnv = fmt.Sprintf(`GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no -p %s`, sshKeyPath, sshPort)
 	} else {
 		// SSH alias: let ~/.ssh/config handle port and identity
-		gitSSHCmd = fmt.Sprintf(`GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git push`)
+		gitSSHEnv = `GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no`
 	}
-	cmd = exec.Command("sh", "-c", gitSSHCmd)
-	cmd.Dir = repoPath
-	if pushOut, err := cmd.CombinedOutput(); err != nil {
+
+	// Pull --rebase before push to avoid divergence when multiple instances push to the same repo
+	pullCmd := exec.Command("git", "pull", "--rebase", "origin", "HEAD")
+	pullCmd.Dir = repoPath
+	pullCmd.Env = append(os.Environ(), gitSSHEnv)
+	if pullOut, err := pullCmd.CombinedOutput(); err != nil {
+		return 0, "", "", fmt.Errorf("git pull --rebase failed: %w, output: %s", err, string(pullOut))
+	}
+
+	pushCmd := exec.Command("git", "push", "origin", "HEAD")
+	pushCmd.Dir = repoPath
+	pushCmd.Env = append(os.Environ(), gitSSHEnv)
+	if pushOut, err := pushCmd.CombinedOutput(); err != nil {
 		return 0, "", "", fmt.Errorf("git push failed: %w, output: %s", err, string(pushOut))
 	}
 
