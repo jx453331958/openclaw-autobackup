@@ -143,45 +143,12 @@ func runCmd(dir string, name string, args ...string) error {
 }
 
 func commitAndPush(cfg *config.Config, repoPath string) (int, string, string, error) {
-	// Check for changes
-	cmd := exec.Command("git", "status", "--porcelain")
-	cmd.Dir = repoPath
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return 0, "", "", fmt.Errorf("git status failed: %w", err)
-	}
-
-	changes := strings.TrimSpace(string(output))
-	if changes == "" {
-		return 0, "", "No changes", nil
-	}
-
-	filesChanged := len(strings.Split(changes, "\n"))
-
-	if err := runCmd(repoPath, "git", "add", "-A"); err != nil {
-		return 0, "", "", err
-	}
-
-	commitMsg := fmt.Sprintf("Auto backup at %s", time.Now().Format("2006-01-02 15:04:05"))
-	if err := runCmd(repoPath, "git", "commit", "-m", commitMsg); err != nil {
-		return 0, "", "", err
-	}
-
-	cmd = exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = repoPath
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		return 0, "", "", fmt.Errorf("git rev-parse failed: %w", err)
-	}
-	commitHash := strings.TrimSpace(string(output))
-
-	// Push via shell with explicit SSH command using configured SSH key
 	sshKeyPath := cfg.SSHKeyPath
 	if sshKeyPath == "" {
 		return 0, "", "", fmt.Errorf("SSH_KEY_PATH not configured")
 	}
 
-	// Sync remote URL with GIT_REMOTE config before pushing
+	// Sync remote URL with GIT_REMOTE config
 	if cfg.GitRemote != "" {
 		if err := runCmd(repoPath, "git", "remote", "set-url", "origin", cfg.GitRemote); err != nil {
 			return 0, "", "", fmt.Errorf("git remote set-url failed: %w", err)
@@ -192,7 +159,9 @@ func commitAndPush(cfg *config.Config, repoPath string) (int, string, string, er
 	// Never rely on ~/.ssh/config — containers don't have it.
 	gitSSHEnv := fmt.Sprintf(`GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no -p %s`, sshKeyPath, cfg.SSHPort)
 
-	// Pull --rebase before push to avoid divergence when multiple instances push to the same repo
+	// Pull --rebase FIRST, before checking for changes.
+	// This also pushes any previously committed but unpushed changes
+	// (e.g., from a prior run where commit succeeded but push failed).
 	pullCmd := exec.Command("git", "pull", "--rebase", "origin", "HEAD")
 	pullCmd.Dir = repoPath
 	pullCmd.Env = append(os.Environ(), gitSSHEnv)
@@ -200,6 +169,48 @@ func commitAndPush(cfg *config.Config, repoPath string) (int, string, string, er
 		return 0, "", "", fmt.Errorf("git pull --rebase failed: %w, output: %s", err, string(pullOut))
 	}
 
+	// Check for changes
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = repoPath
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return 0, "", "", fmt.Errorf("git status failed: %w", err)
+	}
+
+	changes := strings.TrimSpace(string(output))
+
+	// Check if we have unpushed commits from previous failed runs
+	hasUnpushed := hasUnpushedCommits(repoPath)
+
+	if changes == "" && !hasUnpushed {
+		return 0, "", "No changes", nil
+	}
+
+	filesChanged := 0
+	var commitHash, commitMsg string
+
+	if changes != "" {
+		filesChanged = len(strings.Split(changes, "\n"))
+
+		if err := runCmd(repoPath, "git", "add", "-A"); err != nil {
+			return 0, "", "", err
+		}
+
+		commitMsg = fmt.Sprintf("Auto backup at %s", time.Now().Format("2006-01-02 15:04:05"))
+		if err := runCmd(repoPath, "git", "commit", "-m", commitMsg); err != nil {
+			return 0, "", "", err
+		}
+
+		cmd = exec.Command("git", "rev-parse", "HEAD")
+		cmd.Dir = repoPath
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			return 0, "", "", fmt.Errorf("git rev-parse failed: %w", err)
+		}
+		commitHash = strings.TrimSpace(string(output))
+	}
+
+	// Push all commits (new + any previously stuck unpushed ones)
 	pushCmd := exec.Command("git", "push", "origin", "HEAD")
 	pushCmd.Dir = repoPath
 	pushCmd.Env = append(os.Environ(), gitSSHEnv)
@@ -207,7 +218,23 @@ func commitAndPush(cfg *config.Config, repoPath string) (int, string, string, er
 		return 0, "", "", fmt.Errorf("git push failed: %w, output: %s", err, string(pushOut))
 	}
 
+	if changes == "" {
+		return 0, "", "Pushed previously stuck commits", nil
+	}
+
 	return filesChanged, commitHash, commitMsg, nil
+}
+
+// hasUnpushedCommits checks if local branch is ahead of remote
+func hasUnpushedCommits(repoPath string) bool {
+	cmd := exec.Command("git", "rev-list", "--count", "HEAD...@{upstream}")
+	cmd.Dir = repoPath
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	count := strings.TrimSpace(string(output))
+	return count != "0"
 }
 
 // GetWorkspaces returns parsed workspaces from config
