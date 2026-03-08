@@ -34,6 +34,7 @@ chmod +x deploy.sh
 | `BACKUP_REPO` | 是 | - | 本地 Git 备份仓库路径 |
 | `GIT_REMOTE` | 否 | - | Git 远程地址（如 `git@github.com:user/repo.git`） |
 | `SSH_KEY_PATH` | 否 | - | SSH 私钥路径，用于 git push |
+| `SSH_PORT` | 否 | `22` | SSH 端口（如 GitHub 需用 443：`ssh.github.com`） |
 | `BACKUP_CRON` | 否 | `0 * * * *` | 备份周期（cron 表达式，默认每小时） |
 | `PORT` | 否 | `3458` | Web 服务端口 |
 | `TELEGRAM_BOT_TOKEN` | 否 | - | Telegram Bot Token |

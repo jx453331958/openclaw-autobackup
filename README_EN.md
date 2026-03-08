@@ -34,6 +34,7 @@ The deploy wizard generates config files automatically. This table is for later 
 | `BACKUP_REPO` | Yes | - | Local git repository path for backups |
 | `GIT_REMOTE` | No | - | Remote git URL (e.g. `git@github.com:user/repo.git`) |
 | `SSH_KEY_PATH` | No | - | SSH private key path for git push |
+| `SSH_PORT` | No | `22` | SSH port (use 443 for GitHub via `ssh.github.com`) |
 | `BACKUP_CRON` | No | `0 * * * *` | Backup schedule (cron expression, default: hourly) |
 | `PORT` | No | `3458` | Web server port |
 | `TELEGRAM_BOT_TOKEN` | No | - | Telegram bot token |

@@ -175,9 +175,14 @@ interactive_setup() {
         fi
         prompt "  SSH 密钥路径" "$default_key"
         ssh_key_path="$REPLY"
+        echo ""
+        echo "  SSH 端口（GitHub 通过 ssh.github.com 需填 443，普通 SSH 默认 22）"
+        prompt "  SSH 端口" "22"
+        local ssh_port="$REPLY"
     else
         echo ""
         echo -e "${BOLD}4/6 SSH 密钥${NC}（已跳过，未配置远程仓库）"
+        local ssh_port="22"
     fi
 
     # --- Optional Settings ---
@@ -258,6 +263,9 @@ GIT_REMOTE=${git_remote}
 
 # SSH Key Path for Git Push
 SSH_KEY_PATH=${ssh_key_path}
+
+# SSH Port (use 443 for GitHub via ssh.github.com)
+SSH_PORT=${ssh_port}
 
 # Backup Schedule
 BACKUP_CRON=${backup_cron}
