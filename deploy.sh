@@ -234,12 +234,12 @@ interactive_setup() {
     if [ ! -d "$backup_repo" ]; then
         print_info "正在创建备份仓库: $backup_repo"
         mkdir -p "$backup_repo"
-        git init "$backup_repo" > /dev/null 2>&1
-        git -C "$backup_repo" commit --allow-empty -m "init" > /dev/null 2>&1
+        git init "$backup_repo" > /dev/null 2>&1 || true
+        git -C "$backup_repo" -c user.name="autobackup" -c user.email="autobackup@openclaw" commit --allow-empty -m "init" > /dev/null 2>&1 || true
     fi
     if [ -n "$git_remote" ] && [ -d "$backup_repo/.git" ]; then
         if ! git -C "$backup_repo" remote get-url origin > /dev/null 2>&1; then
-            git -C "$backup_repo" remote add origin "$git_remote" > /dev/null 2>&1
+            git -C "$backup_repo" remote add origin "$git_remote" > /dev/null 2>&1 || true
         fi
     fi
 
@@ -322,6 +322,14 @@ COMPOSEEOF
     fi
 }
 
+# Check if docker-compose.yml exists
+require_config() {
+    if [ ! -f docker-compose.yml ]; then
+        print_error "未找到 docker-compose.yml，请先运行 '$0 deploy' 进行初始配置"
+        exit 1
+    fi
+}
+
 # Create data directory
 init_data_dir() {
     if [ ! -d data ]; then
@@ -375,6 +383,7 @@ deploy() {
 update() {
     print_info "开始更新..."
 
+    require_config
     check_docker
 
     print_info "正在拉取最新镜像..."
@@ -396,6 +405,7 @@ update() {
 
 # Stop service
 stop() {
+    require_config
     print_info "正在停止服务..."
     docker compose down
     print_info "服务已停止"
@@ -403,6 +413,7 @@ stop() {
 
 # Restart service
 restart() {
+    require_config
     print_info "正在重启服务..."
     docker compose restart
     print_info "服务已重启"
@@ -410,11 +421,13 @@ restart() {
 
 # Show logs
 logs() {
+    require_config
     docker compose logs -f --tail=100
 }
 
 # Show status
 status() {
+    require_config
     echo ""
     print_info "容器状态:"
     docker compose ps
@@ -442,6 +455,7 @@ backup() {
 
 # Clean up (remove containers and images)
 clean() {
+    require_config
     print_warn "此操作将删除容器和镜像，./data 目录中的数据会保留。"
     read -p "确认删除？(y/N) " -n 1 -r
     echo
@@ -486,6 +500,7 @@ case "${1:-}" in
         update
         ;;
     start)
+        require_config
         docker compose up -d
         print_info "服务已启动"
         ;;
