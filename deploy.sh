@@ -52,19 +52,91 @@ prompt_required() {
     done
 }
 
-# Check if docker is installed and running
-check_docker() {
+# Preflight checks before deploy/update
+preflight_check() {
+    local has_error=false
+
+    echo ""
+    echo -e "${BOLD}环境检查${NC}"
+    echo ""
+
+    # 1. Check Docker
     if ! command -v docker &> /dev/null; then
-        print_error "未检测到 Docker，请先安装 Docker"
+        print_error "未检测到 Docker，请先安装: https://docs.docker.com/get-docker/"
+        has_error=true
+    elif ! docker info &> /dev/null; then
+        print_error "Docker 服务未运行，请执行: sudo systemctl start docker"
+        has_error=true
+    else
+        local docker_ver
+        docker_ver=$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')
+        print_info "Docker 已就绪 (${docker_ver})"
+    fi
+
+    # 2. Check Docker Compose
+    if ! docker compose version &> /dev/null; then
+        print_error "未检测到 Docker Compose，请安装 docker-compose-plugin"
+        has_error=true
+    else
+        print_info "Docker Compose 已就绪"
+    fi
+
+    # 3. Check Git
+    if ! command -v git &> /dev/null; then
+        print_error "未检测到 Git，请先安装: apt install git / yum install git"
+        has_error=true
+    else
+        print_info "Git 已就绪"
+    fi
+
+    # 4. Check network connectivity to ghcr.io
+    print_info "正在检测镜像仓库连通性 (ghcr.io)..."
+    local registry_ok=false
+    # Try curl first, then wget, then docker pull as fallback test
+    if command -v curl &> /dev/null; then
+        if curl -sf --connect-timeout 10 --max-time 15 "https://ghcr.io/v2/" > /dev/null 2>&1; then
+            registry_ok=true
+        fi
+    elif command -v wget &> /dev/null; then
+        if wget -q --timeout=10 --spider "https://ghcr.io/v2/" 2>/dev/null; then
+            registry_ok=true
+        fi
+    else
+        # No curl/wget, try a TCP connection test
+        if timeout 10 bash -c 'echo > /dev/tcp/ghcr.io/443' 2>/dev/null; then
+            registry_ok=true
+        fi
+    fi
+
+    if [ "$registry_ok" = true ]; then
+        print_info "镜像仓库 ghcr.io 连通正常"
+    else
+        print_error "无法连接到镜像仓库 ghcr.io（中国大陆网络可能被墙）"
+        echo ""
+        echo -e "  ${YELLOW}解决方案：${NC}"
+        echo -e "  ${YELLOW}1. 配置 Docker 代理:${NC}"
+        echo -e "     mkdir -p /etc/systemd/system/docker.service.d"
+        echo -e "     cat > /etc/systemd/system/docker.service.d/proxy.conf << 'EOF'"
+        echo -e "     [Service]"
+        echo -e "     Environment=\"HTTPS_PROXY=http://your-proxy:port\""
+        echo -e "     EOF"
+        echo -e "     systemctl daemon-reload && systemctl restart docker"
+        echo ""
+        echo -e "  ${YELLOW}2. 或使用 ghcr.io 镜像加速:${NC}"
+        echo -e "     编辑 /etc/docker/daemon.json 添加镜像地址"
+        echo ""
+        has_error=true
+    fi
+
+    if [ "$has_error" = true ]; then
+        echo ""
+        print_error "环境检查未通过，请先解决以上问题"
         exit 1
     fi
 
-    if ! docker info &> /dev/null; then
-        print_error "Docker 服务未运行，请先启动 Docker"
-        exit 1
-    fi
-
-    print_info "Docker 环境就绪"
+    echo ""
+    print_info "环境检查全部通过"
+    echo ""
 }
 
 # Load .env file variables
@@ -341,7 +413,7 @@ init_data_dir() {
 deploy() {
     print_info "开始部署..."
 
-    check_docker
+    preflight_check
 
     if [ -f .env ] && [ -f docker-compose.yml ]; then
         print_info "检测到已有配置"
@@ -384,7 +456,7 @@ update() {
     print_info "开始更新..."
 
     require_config
-    check_docker
+    preflight_check
 
     print_info "正在拉取最新镜像..."
     docker compose pull
