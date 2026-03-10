@@ -2,7 +2,11 @@
 
 简体中文 | [English](README_EN.md)
 
-轻量级多工作区自动备份工具，支持定时同步到 Git 仓库，带 Web 监控面板和 Telegram 通知。
+轻量级自动备份工具，支持定时同步到 Git 仓库，带 Web 监控面板和 Telegram 通知。
+
+支持两种备份模式：
+- **工作区模式**：将多个源目录 rsync 到独立备份仓库，不修改源目录
+- **直连模式**：将已有目录直接作为 Git 仓库，commit + push，无需 rsync
 
 ## 快速开始
 
@@ -17,8 +21,8 @@ chmod +x deploy.sh
 
 ## 功能特性
 
-- **多工作区备份**：通过环境变量灵活配置多个工作区
-- **选择性同步**：只备份关键文件（*.md、memory/、skills/、.clawhub/、canvas/）
+- **双模式备份**：工作区模式（rsync + git）或直连模式（直接 git 操作）
+- **多工作区支持**：工作区模式下可配置多个源目录
 - **自动 Git 同步**：定时 commit 并 push 到远程仓库（默认每小时）
 - **Web 监控面板**：实时查看备份状态、历史记录、手动触发
 - **Telegram 通知**：备份成功/失败时可选通知
@@ -30,8 +34,8 @@ chmod +x deploy.sh
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `WORKSPACES` | 是 | - | 格式：`名称1:路径1,名称2:路径2` |
-| `BACKUP_REPO` | 是 | - | 本地 Git 备份仓库路径 |
+| `WORKSPACES` | 否 | - | 工作区模式：`名称1:路径1,名称2:路径2`；直连模式留空 |
+| `BACKUP_REPO` | 是 | - | 本地 Git 仓库路径（直连模式下即为目标目录） |
 | `GIT_REMOTE` | 否 | - | Git 远程地址（如 `git@github.com:user/repo.git`） |
 | `SSH_KEY_PATH` | 否 | - | SSH 私钥路径，用于 git push |
 | `SSH_PORT` | 否 | `22` | SSH 端口（如 GitHub 需用 443：`ssh.github.com`） |

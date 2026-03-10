@@ -2,7 +2,11 @@
 
 [简体中文](README.md) | English
 
-A lightweight tool for automatically backing up multiple workspaces to a Git repository. Features scheduled sync, web dashboard, and Telegram notifications.
+A lightweight auto-backup tool with scheduled Git sync, web dashboard, and Telegram notifications.
+
+Two backup modes:
+- **Workspace Mode**: rsync multiple source directories to a dedicated backup repo (source untouched)
+- **Direct Mode**: use an existing directory as-is, commit + push directly (no rsync)
 
 ## Quick Start
 
@@ -17,8 +21,8 @@ The script will guide you through configuration and start the service.
 
 ## Features
 
-- **Multi-Workspace Backup**: Configure multiple workspaces via environment variable
-- **Selective Sync**: Only backs up key files (*.md, memory/, skills/, .clawhub/, canvas/)
+- **Dual Backup Modes**: Workspace mode (rsync + git) or Direct mode (git only)
+- **Multi-Workspace Support**: Configure multiple source directories in workspace mode
 - **Auto Git Sync**: Scheduled commit and push to remote repository (default: hourly)
 - **Web Dashboard**: Real-time backup status, history, and manual trigger
 - **Telegram Notifications**: Optional alerts on backup success/failure
@@ -30,8 +34,8 @@ The deploy wizard generates config files automatically. This table is for later 
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `WORKSPACES` | Yes | - | Format: `name1:/path1,name2:/path2` |
-| `BACKUP_REPO` | Yes | - | Local git repository path for backups |
+| `WORKSPACES` | No | - | Workspace mode: `name1:/path1,name2:/path2`; leave empty for direct mode |
+| `BACKUP_REPO` | Yes | - | Local git repo path (in direct mode, this IS the target directory) |
 | `GIT_REMOTE` | No | - | Remote git URL (e.g. `git@github.com:user/repo.git`) |
 | `SSH_KEY_PATH` | No | - | SSH private key path for git push |
 | `SSH_PORT` | No | `22` | SSH port (use 443 for GitHub via `ssh.github.com`) |

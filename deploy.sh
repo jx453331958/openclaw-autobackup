@@ -171,73 +171,112 @@ interactive_setup() {
     echo -e "${BOLD}========================================${NC}"
     echo ""
 
-    # --- Workspaces ---
-    echo -e "${BOLD}1/6 工作区配置${NC}"
-    echo "  添加需要备份的目录，每个工作区需要一个名称和绝对路径。"
+    # --- Mode Selection ---
+    echo -e "${BOLD}选择备份模式${NC}"
+    echo ""
+    echo "  1) 工作区模式（默认）- 将源目录 rsync 到独立备份仓库"
+    echo "     适合：备份多个目录到一个仓库，不修改源目录"
+    echo ""
+    echo "  2) 直连模式 - 将已有目录直接关联远程 Git 仓库"
+    echo "     适合：已有目录直接 git commit + push，无需 rsync"
+    echo ""
+    prompt "  请选择" "1"
+    local backup_mode="${REPLY:-1}"
     echo ""
 
     local workspaces_str=""
     local workspace_volumes=""
-    local ws_index=1
+    local backup_repo=""
+    local step=1
 
-    while true; do
-        echo -e "  ${BOLD}工作区 #${ws_index}${NC}"
-        prompt "    名称（如 my-project）"
-        local ws_name="$REPLY"
-        if [ -z "$ws_name" ]; then
-            if [ -z "$workspaces_str" ]; then
-                print_error "  至少需要配置一个工作区"
+    if [ "$backup_mode" = "2" ]; then
+        # --- Direct Mode ---
+        local total_steps=5
+
+        echo -e "${BOLD}${step}/${total_steps} 目标目录${NC}"
+        echo "  要备份的目录路径，将直接在该目录执行 git 操作（无 rsync）。"
+        echo ""
+        prompt_required "  目录路径（如 /home/user/my-project）"
+        backup_repo="$REPLY"
+
+        if [[ "$backup_repo" != /* ]]; then
+            print_error "路径必须是绝对路径（以 / 开头）"
+            exit 1
+        fi
+        step=$((step + 1))
+        # workspaces_str stays empty — direct mode skips rsync
+    else
+        # --- Workspace Mode ---
+        local total_steps=6
+
+        echo -e "${BOLD}${step}/${total_steps} 工作区配置${NC}"
+        echo "  添加需要备份的目录，每个工作区需要一个名称和绝对路径。"
+        echo ""
+
+        local ws_index=1
+        while true; do
+            echo -e "  ${BOLD}工作区 #${ws_index}${NC}"
+            prompt "    名称（如 my-project）"
+            local ws_name="$REPLY"
+            if [ -z "$ws_name" ]; then
+                if [ -z "$workspaces_str" ]; then
+                    print_error "  至少需要配置一个工作区"
+                    continue
+                fi
+                break
+            fi
+
+            prompt_required "    路径（绝对路径，如 /home/user/projects/my-project）"
+            local ws_path="$REPLY"
+
+            # Validate path format
+            if [[ "$ws_path" != /* ]]; then
+                print_error "  路径必须是绝对路径（以 / 开头）"
                 continue
             fi
-            break
-        fi
 
-        prompt_required "    路径（绝对路径，如 /home/user/projects/my-project）"
-        local ws_path="$REPLY"
+            if [ -n "$workspaces_str" ]; then
+                workspaces_str="${workspaces_str},"
+            fi
+            workspaces_str="${workspaces_str}${ws_name}:${ws_path}"
+            workspace_volumes="${workspace_volumes}      - ${ws_path}:${ws_path}:ro\n"
+            print_info "  已添加: ${ws_name} -> ${ws_path}"
+            echo ""
 
-        # Validate path format
-        if [[ "$ws_path" != /* ]]; then
-            print_error "  路径必须是绝对路径（以 / 开头）"
-            continue
-        fi
+            ws_index=$((ws_index + 1))
+            prompt "  继续添加工作区？(y/N)"
+            if [[ ! "$REPLY" =~ ^[Yy] ]]; then
+                break
+            fi
+            echo ""
+        done
+        step=$((step + 1))
 
-        if [ -n "$workspaces_str" ]; then
-            workspaces_str="${workspaces_str},"
-        fi
-        workspaces_str="${workspaces_str}${ws_name}:${ws_path}"
-        workspace_volumes="${workspace_volumes}      - ${ws_path}:${ws_path}:ro\n"
-        print_info "  已添加: ${ws_name} -> ${ws_path}"
+        # --- Backup Repo ---
         echo ""
-
-        ws_index=$((ws_index + 1))
-        prompt "  继续添加工作区？(y/N)"
-        if [[ ! "$REPLY" =~ ^[Yy] ]]; then
-            break
-        fi
+        echo -e "${BOLD}${step}/${total_steps} 备份仓库${NC}"
+        echo "  备份文件存储的本地 Git 仓库路径，不存在会自动创建。"
         echo ""
-    done
-
-    # --- Backup Repo ---
-    echo ""
-    echo -e "${BOLD}2/6 备份仓库${NC}"
-    echo "  备份文件存储的本地 Git 仓库路径，不存在会自动创建。"
-    echo ""
-    prompt_required "  备份仓库路径（如 /home/user/backup-repo）"
-    local backup_repo="$REPLY"
+        prompt_required "  备份仓库路径（如 /home/user/backup-repo）"
+        backup_repo="$REPLY"
+        step=$((step + 1))
+    fi
 
     # --- Git Remote ---
     echo ""
-    echo -e "${BOLD}3/6 Git 远程仓库${NC}"
+    echo -e "${BOLD}${step}/${total_steps} Git 远程仓库${NC}"
     echo "  备份推送的远程仓库地址（可选，直接回车跳过）。"
     echo ""
     prompt "  远程仓库地址（如 git@github.com:user/backup.git）"
     local git_remote="$REPLY"
+    step=$((step + 1))
 
     # --- SSH Key ---
     local ssh_key_path=""
+    local ssh_port="22"
     if [ -n "$git_remote" ]; then
         echo ""
-        echo -e "${BOLD}4/6 SSH 密钥${NC}"
+        echo -e "${BOLD}${step}/${total_steps} SSH 密钥${NC}"
         echo "  用于推送到远程仓库的 SSH 私钥。"
         echo ""
         local default_key="$HOME/.ssh/id_rsa"
@@ -250,16 +289,16 @@ interactive_setup() {
         echo ""
         echo "  SSH 端口（GitHub 通过 ssh.github.com 需填 443，普通 SSH 默认 22）"
         prompt "  SSH 端口" "22"
-        local ssh_port="$REPLY"
+        ssh_port="$REPLY"
     else
         echo ""
-        echo -e "${BOLD}4/6 SSH 密钥${NC}（已跳过，未配置远程仓库）"
-        local ssh_port="22"
+        echo -e "${BOLD}${step}/${total_steps} SSH 密钥${NC}（已跳过，未配置远程仓库）"
     fi
+    step=$((step + 1))
 
-    # --- Optional Settings ---
+    # --- Backup Schedule ---
     echo ""
-    echo -e "${BOLD}5/6 备份周期${NC}"
+    echo -e "${BOLD}${step}/${total_steps} 备份周期${NC}"
     echo ""
     echo "  选择备份频率："
     echo "    1) 每小时（默认）"
@@ -284,10 +323,11 @@ interactive_setup() {
         *) backup_cron="0 * * * *" ;;
     esac
     print_info "  备份周期: ${backup_cron}"
+    step=$((step + 1))
 
     # --- Optional Settings ---
     echo ""
-    echo -e "${BOLD}6/6 可选配置${NC}"
+    echo -e "${BOLD}${step}/${total_steps} 可选配置${NC}"
     echo ""
     prompt "  Web 面板端口" "3458"
     local port="$REPLY"
@@ -304,10 +344,15 @@ interactive_setup() {
 
     # --- Init backup repo ---
     if [ ! -d "$backup_repo" ]; then
-        print_info "正在创建备份仓库: $backup_repo"
+        print_info "正在创建目录: $backup_repo"
         mkdir -p "$backup_repo"
+    fi
+    if [ ! -d "$backup_repo/.git" ]; then
+        print_info "正在初始化 Git 仓库: $backup_repo"
         git init "$backup_repo" > /dev/null 2>&1 || true
         git -C "$backup_repo" -c user.name="autobackup" -c user.email="autobackup@openclaw" commit --allow-empty -m "init" > /dev/null 2>&1 || true
+    else
+        print_info "检测到已有 Git 仓库: $backup_repo"
     fi
     if [ -n "$git_remote" ] && [ -d "$backup_repo/.git" ]; then
         if ! git -C "$backup_repo" remote get-url origin > /dev/null 2>&1; then
@@ -377,8 +422,14 @@ COMPOSEEOF
     echo -e "${BOLD}========================================${NC}"
     echo -e "${BOLD}  配置摘要${NC}"
     echo -e "${BOLD}========================================${NC}"
-    echo -e "  工作区:     ${GREEN}${workspaces_str}${NC}"
-    echo -e "  备份仓库:   ${GREEN}${backup_repo}${NC}"
+    if [ "$backup_mode" = "2" ]; then
+        echo -e "  备份模式:   ${GREEN}直连模式（无 rsync，直接 git 操作）${NC}"
+        echo -e "  目标目录:   ${GREEN}${backup_repo}${NC}"
+    else
+        echo -e "  备份模式:   ${GREEN}工作区模式（rsync + git）${NC}"
+        echo -e "  工作区:     ${GREEN}${workspaces_str}${NC}"
+        echo -e "  备份仓库:   ${GREEN}${backup_repo}${NC}"
+    fi
     echo -e "  远程仓库:   ${GREEN}${git_remote:-未配置}${NC}"
     echo -e "  SSH 密钥:   ${GREEN}${ssh_key_path:-未配置}${NC}"
     echo -e "  备份周期:   ${GREEN}${backup_cron}${NC}"
