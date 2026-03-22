@@ -162,7 +162,7 @@ func commitAndPush(cfg *config.Config, repoPath string) (int, string, string, er
 	// Pull --rebase FIRST, before checking for changes.
 	// This also pushes any previously committed but unpushed changes
 	// (e.g., from a prior run where commit succeeded but push failed).
-	pullCmd := exec.Command("git", "pull", "--rebase", "origin", "HEAD")
+	pullCmd := exec.Command("git", "pull", "--rebase", "--autostash", "origin", "HEAD")
 	pullCmd.Dir = repoPath
 	pullCmd.Env = append(os.Environ(), gitSSHEnv)
 	if pullOut, err := pullCmd.CombinedOutput(); err != nil {
